@@ -1,0 +1,70 @@
+╔══════════════════════════════════════════╗
+║                 FILE: routes.py
+╚══════════════════════════════════════════╝
+
+from flask import render_template, request as r, jsonify
+from requests.auth import HTTPDigestAuth
+from app import app, auth
+import requests
+ 
+@app.route('/',methods=['GET'])
+def index():
+    return render_template("index.html")
+
+@app.route('/auth',methods=['GET'])
+@auth.login_required
+def auth():
+    return render_template("auth.html",flag=app.config['FLAG'])
+
+@app.route('/api/check',methods=['GET'])
+def check():
+    (user, pw), *_ = app.config['AUTH_USERS'].items()
+    res = requests.get(r.referrer + '/auth',
+        auth = HTTPDigestAuth(user,pw),
+        timeout=3
+    )
+    return jsonify({'status':res.status_code})
+
+┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅
+          END OF routes.py
+┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅
+
+╔══════════════════════════════════════════╗
+║                 FILE: ../config.py
+╚══════════════════════════════════════════╝
+
+from secrets import token_urlsafe, token_hex
+import os
+
+class FlaskConfig:
+	SECRET_KEY = token_hex(32)
+	AUTH_USERS = {
+    	"keno": token_urlsafe(16),
+    	"tenk": token_urlsafe(16)
+	}
+	FLAG = os.environ.get('FLAG','bctf{fake_flag_for_testing}')
+	# print(AUTH_USERS)
+
+┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅
+          END OF ../config.py
+┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅
+
+╔══════════════════════════════════════════╗
+║                 FILE: __init__.py
+╚══════════════════════════════════════════╝
+
+from flask import Flask
+from flask_bootstrap import Bootstrap5
+from flask_httpauth import HTTPDigestAuth
+from config import FlaskConfig
+
+app = Flask(__name__)
+app.config.from_object(FlaskConfig)
+bootstrap = Bootstrap5(app)
+
+auth = HTTPDigestAuth()
+@auth.get_password
+def get_pw(uname):
+	return app.config['AUTH_USERS'].get(uname,None)
+
+from app import routes
